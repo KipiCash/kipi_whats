@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Web - Escanear QR</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container text-center mt-5">
+        <h1>Escanea el Código QR para iniciar sesión</h1>
+        <img id="qrImage" src="qrcode.png" alt="QR Code" class="img-fluid" style="display:none;">
+        <div id="status" class="alert alert-success mt-3" style="display:block;">Conexión exitosa</div>
+    </div>
+
+    <script>
+        // Verificar si hay algún mensaje del cliente de WhatsApp listo
+        window.onload = function() {
+            const statusElement = document.getElementById('status');
+            const qrImage = document.getElementById('qrImage');
+
+            // Función que reemplaza el QR por el mensaje de conexión exitosa
+            const showConnectionSuccess = () => {
+                qrImage.style.display = 'none';  // Ocultar el QR
+                statusElement.style.display = 'block';  // Mostrar el mensaje
+            };
+
+            // Función para actualizar la página verificando los cambios en el archivo
+            const checkConnectionStatus = () => {
+                fetch('qrcode.png')
+                    .then(response => {
+                        if (response.ok) {
+                            // Si el QR fue actualizado, mostrar el mensaje
+                            showConnectionSuccess();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error al comprobar el QR:', error);
+                    });
+            };
+
+            // Verificar cada 2 segundos si el cliente está listo y el archivo ha cambiado
+            setInterval(checkConnectionStatus, 2000);
+
+            // Ejecutar esta función cuando la conexión esté lista
+            if (typeof client !== 'undefined') {
+                client.on('ready', showConnectionSuccess);
+            }
+        }
+    </script>
+</body>
+</html>
