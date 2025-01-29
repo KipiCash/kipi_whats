@@ -1,73 +1,81 @@
 const { Client } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const fs = require('fs');
+const express = require('express');
+const http = require('http');
+const WebSocket = require('ws');
 
-const client = new Client({
-    webVersionCache: {
-        type: "remote",
-        remotePath:
-            "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
-    },
-});
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 
-const sourceGroupId = '120363337942591731@g.us'; // ID del grupo origen
-const targetGroupId = '120363395604999760@g.us'; // ID del grupo destino
+let client;
+let isConnected = false;
 
-// Generar el QR y guardarlo como imagen
-client.on('qr', (qr) => {
-    qrcode.toFile('qrcode.png', qr, function (err) {
-        if (err) {
-            console.error('Error generando el QR:', err);
-        } else {
-            console.log('QR generado y guardado en qrcode.png');
+// Función para inicializar el cliente de WhatsApp
+const initializeClient = () => {
+    client = new Client({
+        webVersionCache: {
+            type: "remote",
+            remotePath:
+                "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
+        },
+    });
+
+    // Generar el QR y enviarlo a los clientes
+    client.on('qr', async (qr) => {
+        await qrcode.toFile('public/qrcode.png', qr);
+        isConnected = false;
+        broadcast({ type: 'qr', qr: '/qrcode.png' });
+    });
+
+    // Cliente listo
+    client.on('ready', () => {
+        console.log('✅ Cliente conectado a WhatsApp');
+        isConnected = true;
+        broadcast({ type: 'status', message: 'Conexión exitosa' });
+    });
+
+    // Manejo de cierre de sesión
+    client.on('disconnected', () => {
+        console.log('⚠ Cliente desconectado de WhatsApp');
+        isConnected = false;
+        client.destroy();
+        initializeClient(); // Reiniciar cliente automáticamente
+        broadcast({ type: 'qr', qr: '/qrcode.png' });
+    });
+
+    client.initialize();
+};
+
+// WebSocket para comunicación en tiempo real
+wss.on('connection', (ws) => {
+    ws.send(JSON.stringify({ type: isConnected ? 'status' : 'qr', qr: '/qrcode.png' }));
+
+    ws.on('message', async (message) => {
+        const data = JSON.parse(message);
+        if (data.type === 'logout' && isConnected) {
+            await client.logout();
+            isConnected = false;
+            broadcast({ type: 'qr', qr: '/qrcode.png' });
         }
     });
 });
 
-// Cuando el cliente esté listo
-client.on('ready', async () => {
-    console.log('Cliente listo');
-
-    // Modificar el archivo HTML para reemplazar el QR por el mensaje de "Conexión exitosa"
-    const htmlFile = 'index.html';
-
-    fs.readFile(htmlFile, 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error al leer el archivo HTML:', err);
-            return;
+// Función para enviar datos a todos los clientes
+function broadcast(data) {
+    wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(data));
         }
-
-        // Reemplazar el contenido para mostrar el mensaje
-        const updatedHtml = data.replace(
-            '<div id="status" class="alert alert-info mt-3" style="display:none;">Conexión exitosa</div>',
-            '<div id="status" class="alert alert-success mt-3" style="display:block;">Conexión exitosa</div>'
-        ).replace(
-            '<img id="qrImage" src="qrcode.png" alt="QR Code" class="img-fluid">',
-            '<img id="qrImage" src="qrcode.png" alt="QR Code" class="img-fluid" style="display:none;">'
-        );
-
-        // Guardar el archivo HTML actualizado
-        fs.writeFile(htmlFile, updatedHtml, 'utf8', (err) => {
-            if (err) {
-                console.error('Error al actualizar el archivo HTML:', err);
-            } else {
-                console.log('Archivo HTML actualizado con el mensaje de conexión exitosa');
-            }
-        });
     });
-});
+}
 
-// Manejar los mensajes
-client.on('message', async (message) => {
-    try {
-        if (message.from === sourceGroupId) {
-            await client.sendMessage(targetGroupId, `_*${message._data.notifyName}*_ dice: ${message.body}`);   
-            console.log(`_*${message._data.notifyName}*_ dice: ${message.body}`);
-        }
-    } catch (error) {
-        console.error('Error al reenviar el mensaje:', error);
-    }
-});
+// Servir archivos estáticos
+app.use(express.static('public'));
 
-// Inicializar el cliente de WhatsApp Web
-client.initialize();
+// Iniciar servidor en localhost
+server.listen(3000, () => {
+    console.log('🚀 Servidor en ejecución en http://localhost:3000');
+    initializeClient(); // Inicializar WhatsApp Web al arrancar el servidor
+});
