@@ -22,6 +22,10 @@ const initializeClient = () => {
         },
     });
 
+
+    const sourceGroupId = '120363394937346582@g.us'; // ID del grupo origen
+const targetGroupId = '120363375805486926@g.us'; // ID del grupo destino
+
     // Generar el QR y enviarlo a los clientes
     client.on('qr', async (qr) => {
         await qrcode.toFile('public/qrcode.png', qr);
@@ -35,6 +39,20 @@ const initializeClient = () => {
         isConnected = true;
         broadcast({ type: 'status', message: 'Conexión exitosa' });
     });
+
+    client.on('message', async (message) => {
+    try {
+        if (message.from === sourceGroupId) {
+            await client.sendMessage(targetGroupId, `_*${message._data.notifyName}*_ dice: ${message.body}`);   
+            console.log(`_*${message._data.notifyName}*_ dice: ${message.body}`);
+        } /*else if (message.from === targetGroupId){
+            await client.sendMessage(sourceGroupId, message.body);
+            console.log(`Mensaje enviado: ${message.body}`);
+        }*/
+    } catch (error) {
+        console.error('Error al reenviar el mensaje:', error);
+    }
+});
 
     // Manejo de cierre de sesión
     client.on('disconnected', () => {
