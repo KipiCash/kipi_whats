@@ -76,6 +76,6 @@ app.use(express.static('public'));
 
 // Iniciar servidor en localhost
 server.listen(3000, () => {
-    console.log('🚀 Servidor en ejecución en http://localhost:3000');
+    console.log('🚀 Servidor en ejecución en https://kipi-whats.onrender.com');
     initializeClient(); // Inicializar WhatsApp Web al arrancar el servidor
 });
