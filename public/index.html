@@ -18,7 +18,7 @@
         const qrImage = document.getElementById('qrImage');
         const statusElement = document.getElementById('status');
         const logoutBtn = document.getElementById('logoutBtn');
-        const ws = new WebSocket('ws://localhost:3000');
+        const ws = new WebSocket('https://kipi-whats.onrender.com/');
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
