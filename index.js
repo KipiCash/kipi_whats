@@ -22,8 +22,8 @@ const initializeClient = () => {
     });
 
 
-const sourceGroupId = '120363337942591731@g.us'; // ID del grupo origen
-const targetGroupId = '120363395604999760@g.us'; // ID del grupo destino
+    const sourceGroupId = '120363337942591731@g.us'; // ID del grupo origen
+    const targetGroupId = '120363395604999760@g.us'; // ID del grupo destino
 
     client.on('qr', async (qr) => {
         await qrcode.toFile('public/qrcode.png', qr);
@@ -38,25 +38,27 @@ const targetGroupId = '120363395604999760@g.us'; // ID del grupo destino
     });
 
     client.on('message', async (message) => {
-    try {
-        if (message.from === sourceGroupId) {
-            await client.sendMessage(targetGroupId, `_*${message._data.notifyName}*_ dice: ${message.body}`);   
-            console.log(`_*${message._data.notifyName}*_ dice: ${message.body}`);
-        } /*else if (message.from === targetGroupId){
+        try {
+            if (message.from === sourceGroupId) {
+                await client.sendMessage(targetGroupId, `_*${message._data.notifyName}*_ dice: ${message.body}`);
+                console.log(`_*${message._data.notifyName}*_ dice: ${message.body}`);
+            } /*else if (message.from === targetGroupId){
             await client.sendMessage(sourceGroupId, message.body);
             console.log(`Mensaje enviado: ${message.body}`);
         }*/
-    } catch (error) {
-        console.error('Error al reenviar el mensaje:', error);
-    }
-});
+        } catch (error) {
+            console.error('Error al reenviar el mensaje:', error);
+        }
+    });
 
-    client.on('disconnected', () => {
-        console.log('⚠ Cliente desconectado de WhatsApp');
+    client.on('disconnected', (reason) => {
+        console.log(`⚠ Cliente desconectado de WhatsApp. Razón: ${reason}`);
         isConnected = false;
-        client.destroy();
-        initializeClient(); // Reiniciar cliente automáticamente
-        broadcast({ type: 'qr', qr: '/qrcode.png' });
+    
+        if (reason === 'connessione_sospesa' || reason === 'desconectado') {
+            console.log('Reconectando WhatsApp Web...');
+            initializeClient();
+        }
     });
 
     client.initialize();
